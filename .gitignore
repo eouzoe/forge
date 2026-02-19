@@ -1,0 +1,29 @@
+# Build
+/target/
+**/*.rs.bk
+*.pdb
+
+# Secrets
+.env
+.env.local
+*.key
+*.pem
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Internal development files
+.beads/
+.claude/
+CLAUDE.md
+AGENTS.md
+SESSION_LOG.md
+.mcp.json
