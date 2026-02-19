@@ -90,6 +90,18 @@ I am building this alone, and I am building it properly. Every public type has d
 
 ---
 
+## Known Limitations & Open Questions
+
+Honesty about boundaries is more useful than pretending they don't exist.
+
+**Kernel determinism.** Nix guarantees hermetic builds, but the kernel sits beneath that guarantee. Different kernel versions or CPU microcode can produce subtly different behaviour for the same binary. The kernel is already a parameter in `VmConfig`, but it is not yet content-addressed through Nix. Until it is, determinism depends on the host environment. This is the first thing `forge-nix` will address.
+
+**Output canonicalisation.** The current SHA-256 hash covers raw stdout and stderr. Many tools emit timestamps, PIDs, or temporary paths that vary between runs. A block running `cargo build` will produce different hashes even if the compilation is semantically identical. The audit engine will need a normalisation pipeline — stripping non-deterministic artefacts before hashing — or blocks will need to declare which output fields are deterministic. This is an unsolved design problem, not a missing feature.
+
+**Trust score integrity.** In a single-user, local deployment, trust is straightforward. In a community setting, the current accumulation model (execution count + audit count) is vulnerable to Sybil attacks. The path forward likely involves content-addressed identity (cryptographic keys, not accounts) and a Web of Trust model where trust flows from verified sources rather than accumulating from volume. This is a v0.2.0 concern, but the type system is designed to accommodate it.
+
+---
+
 ## Quick Start
 
 Requirements: Rust 1.82+, KVM (`/dev/kvm`), Firecracker binary
