@@ -1,6 +1,22 @@
 [package]
 name = "forge-executor"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition = "2021"
+license.workspace = true
 
 [dependencies]
+forge-core = { workspace = true }
+async-trait.workspace = true
+hyper = { workspace = true }
+hyper-util = { workspace = true }
+http-body-util = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

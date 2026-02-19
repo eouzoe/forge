@@ -27,6 +27,12 @@ thiserror = "2"
 
 # Async
 tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+
+# HTTP (Unix socket client for Firecracker API)
+hyper = { version = "1", features = ["client", "http1"] }
+hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
+http-body-util = "0.1"
 
 # Utilities
 chrono = { version = "0.4", features = ["serde"] }
