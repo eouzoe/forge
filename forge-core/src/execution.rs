@@ -32,6 +32,42 @@ pub struct ExecutionRecord {
     pub status: ExecutionStatus,
 }
 
+impl ExecutionRecord {
+    /// Create a new execution record.
+    ///
+    /// # Arguments
+    /// - `block_id`: the block that was executed
+    /// - `user_id`: the user who triggered execution
+    /// - `input_hash`: SHA-256 of the input bytes
+    /// - `output_hash`: SHA-256 of the captured output
+    /// - `started_at`: wall-clock start time
+    /// - `duration`: wall-clock elapsed time
+    /// - `status`: final execution status
+    #[must_use]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        block_id: BlockId,
+        user_id: UserId,
+        input_hash: ContentHash,
+        output_hash: ContentHash,
+        started_at: DateTime<Utc>,
+        duration: Duration,
+        status: ExecutionStatus,
+    ) -> Self {
+        Self {
+            id: ExecutionId::new(),
+            block_id,
+            user_id,
+            input_hash,
+            output_hash,
+            started_at,
+            duration,
+            vm_snapshot_id: None,
+            status,
+        }
+    }
+}
+
 /// The outcome of a block execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]

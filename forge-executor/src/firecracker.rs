@@ -7,14 +7,16 @@
 //! Firecracker API spec: `firecracker/src/api_server/swagger/firecracker.yaml`
 
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
 use std::time::Duration;
 
 use async_trait::async_trait;
 use hyper::Method;
+use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 use uuid::Uuid;
 
-use crate::backend::VmmBackend;
+use crate::backend::{ExecutionOutput, VmmBackend};
 use crate::unix_client::api_request;
 use crate::{ExecutorError, SnapshotId, VmConfig, VmHandle};
 
@@ -350,6 +352,88 @@ impl VmmBackend for FirecrackerBackend {
 
         Ok(())
     }
+
+    async fn execute_command(
+        &self,
+        config: &VmConfig,
+        command: &str,
+        timeout: Duration,
+    ) -> Result<ExecutionOutput, ExecutorError> {
+        // Verify KVM and binary are available.
+        if !Path::new("/dev/kvm").exists() {
+            return Err(ExecutorError::KvmUnavailable {
+                reason: "/dev/kvm not found".to_owned(),
+            });
+        }
+        which_binary(&self.binary_path)?;
+
+        let vm_id = Uuid::new_v4();
+        let socket_path = self.socket_path(vm_id);
+        tokio::fs::create_dir_all(&self.socket_dir).await?;
+
+        // Embed the command as the init process.
+        // Markers let us extract just the command output from the serial stream.
+        let init_script = format!(
+            "echo FORGE_OUTPUT_START; {command} 2>&1; echo FORGE_OUTPUT_END; poweroff -f 2>/dev/null || reboot -f"
+        );
+        let boot_args = format!(
+            "console=ttyS0 reboot=k panic=1 pci=off quiet init=/bin/sh -c \"{init_script}\""
+        );
+
+        let mut exec_config = config.clone();
+        exec_config.boot_args = boot_args;
+
+        tracing::info!(vm_id = %vm_id, %command, "executing command in microVM");
+
+        // Spawn Firecracker with stdout piped so we can read serial console output.
+        let mut process = Command::new(&self.binary_path)
+            .arg("--api-sock")
+            .arg(&socket_path)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .kill_on_drop(true)
+            .spawn()
+            .map_err(|e| ExecutorError::SpawnFailed(format!("exec firecracker: {e}")))?;
+
+        // Wait for socket, then configure and boot.
+        Self::wait_for_socket(&socket_path).await?;
+        Self::configure_and_boot(&socket_path, &exec_config)
+            .await
+            .map_err(|e| ExecutorError::SpawnFailed(e.to_string()))?;
+
+        // Read stdout while waiting for the VM to exit (with timeout).
+        let stdout_handle = process
+            .stdout
+            .take()
+            .ok_or_else(|| ExecutorError::SpawnFailed("stdout not piped".to_owned()))?;
+
+        let read_future = async {
+            let mut buf = Vec::new();
+            let mut reader = tokio::io::BufReader::new(stdout_handle);
+            reader.read_to_end(&mut buf).await.map(|_| buf)
+        };
+
+        let raw_output = tokio::time::timeout(timeout, read_future)
+            .await
+            .map_err(|_| {
+                ExecutorError::SpawnFailed(format!(
+                    "VM did not complete within {}s",
+                    timeout.as_secs()
+                ))
+            })?
+            .map_err(ExecutorError::Io)?;
+
+        // Wait for process to fully exit.
+        let _ = process.wait().await;
+        let _ = tokio::fs::remove_file(&socket_path).await;
+
+        tracing::info!(vm_id = %vm_id, bytes = raw_output.len(), "VM execution complete");
+
+        // Extract output between markers.
+        let stdout = extract_marked_output(&raw_output);
+
+        Ok(ExecutionOutput { stdout })
+    }
 }
 
 /// Verify a binary exists either at the given path or in PATH.
@@ -372,5 +456,28 @@ fn which_binary(path: &Path) -> Result<(), ExecutorError> {
         Ok(())
     } else {
         Err(ExecutorError::BinaryNotFound { path: path.to_owned() })
+    }
+}
+
+/// Extract bytes between `FORGE_OUTPUT_START` and `FORGE_OUTPUT_END` markers.
+///
+/// Falls back to the full raw output if markers are not found (e.g. the rootfs
+/// does not support the init script pattern).
+fn extract_marked_output(raw: &[u8]) -> Vec<u8> {
+    let start_marker = b"FORGE_OUTPUT_START\r\n";
+    let end_marker = b"FORGE_OUTPUT_END";
+
+    let start_pos = raw
+        .windows(start_marker.len())
+        .position(|w| w == start_marker)
+        .map(|p| p + start_marker.len());
+
+    let end_pos = raw
+        .windows(end_marker.len())
+        .position(|w| w == end_marker);
+
+    match (start_pos, end_pos) {
+        (Some(s), Some(e)) if s < e => raw[s..e].to_vec(),
+        _ => raw.to_vec(),
     }
 }

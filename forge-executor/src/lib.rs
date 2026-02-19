@@ -14,14 +14,16 @@ pub mod error;
 pub mod firecracker;
 pub mod handle;
 pub mod orchestrator;
+pub mod runner;
 pub(crate) mod unix_client;
 
-pub use backend::VmmBackend;
+pub use backend::{ExecutionOutput, VmmBackend};
 pub use config::{VmConfig, SnapshotId};
 pub use error::ExecutorError;
 pub use firecracker::FirecrackerBackend;
 pub use handle::VmHandle;
 pub use orchestrator::VmOrchestrator;
+pub use runner::{BlockRunner, compute_hash};
 
 #[cfg(test)]
 mod tests {

@@ -3,9 +3,18 @@
 //! Allows swapping between Firecracker, libkrun, or other VMMs
 //! without changing the orchestration logic.
 
+use std::time::Duration;
+
 use async_trait::async_trait;
 
 use crate::{ExecutorError, SnapshotId, VmConfig, VmHandle};
+
+/// Raw output captured from a run-to-completion VM execution.
+#[derive(Debug, Clone)]
+pub struct ExecutionOutput {
+    /// Bytes written to the serial console by the guest command.
+    pub stdout: Vec<u8>,
+}
 
 /// Virtual Machine Manager abstraction.
 ///
@@ -47,4 +56,22 @@ pub trait VmmBackend: Send + Sync {
     /// Returns [`ExecutorError::BinaryNotFound`] or [`ExecutorError::KvmUnavailable`]
     /// if the environment is not ready.
     async fn health_check(&self) -> Result<(), ExecutorError>;
+
+    /// Spawn a VM, run `command` to completion, and return captured output.
+    ///
+    /// The command is embedded in the kernel boot args as the init process.
+    /// The VM powers off automatically when the command exits.
+    ///
+    /// # Cancel Safety
+    /// Cancel safe. Dropping the future will terminate the VM process.
+    ///
+    /// # Errors
+    /// Returns [`ExecutorError::SpawnFailed`] if the VM cannot start.
+    /// Returns [`ExecutorError::Io`] on timeout or process wait failure.
+    async fn execute_command(
+        &self,
+        config: &VmConfig,
+        command: &str,
+        timeout: Duration,
+    ) -> Result<ExecutionOutput, ExecutorError>;
 }
