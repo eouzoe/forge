@@ -66,7 +66,7 @@ Every execution follows the same protocol:
 4. SHA-256 of stdout and stderr becomes the `output_hash`.
 5. An `ExecutionRecord` is written: block, input hash, output hash, duration.
 
-Five runs of the same block with the same input produce five identical hashes. This is not a goal. It is a test that runs on every commit.
+Five runs of the same block with the same input produce five identical hashes. This is not a goal. It is a test.
 
 ---
 
