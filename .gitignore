@@ -23,7 +23,6 @@ Thumbs.db
 # Internal development files
 .beads/
 .claude/
-CLAUDE.md
 AGENTS.md
 SESSION_LOG.md
 .mcp.json
