@@ -83,7 +83,7 @@ impl<B: VmmBackend> BlockRunner<B> {
             .await?;
 
         let duration = wall_start.elapsed();
-        let output_hash = compute_hash(&output.stdout, b"");
+        let output_hash = compute_hash(&output.stdout, &output.stderr);
 
         tracing::info!(
             block = %block.manifest.name,

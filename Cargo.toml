@@ -41,6 +41,7 @@ tracing = "0.1"
 
 # Cryptography
 sha2 = "0.10"
+base64 = "0.22"
 
 # Dev dependencies
 [profile.release]

@@ -11,6 +11,7 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use base64::Engine as _;
 use hyper::Method;
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
@@ -372,9 +373,13 @@ impl VmmBackend for FirecrackerBackend {
         tokio::fs::create_dir_all(&self.socket_dir).await?;
 
         // Embed the command as the init process.
-        // Markers let us extract just the command output from the serial stream.
+        // Separate stdout/stderr via temp files; base64-encode both to survive
+        // the serial console's text transport without corruption.
         let init_script = format!(
-            "echo FORGE_OUTPUT_START; {command} 2>&1; echo FORGE_OUTPUT_END; poweroff -f 2>/dev/null || reboot -f"
+            "SF=$(mktemp);EF=$(mktemp);eval \"{command}\" >\"$SF\" 2>\"$EF\";EC=$?;\
+             echo FORGE_STDOUT_B64_START;base64 \"$SF\";echo FORGE_STDOUT_B64_END;\
+             echo FORGE_STDERR_B64_START;base64 \"$EF\";echo FORGE_STDERR_B64_END;\
+             echo FORGE_EXIT:$EC;poweroff -f 2>/dev/null||reboot -f"
         );
         let boot_args = format!(
             "console=ttyS0 reboot=k panic=1 pci=off quiet init=/bin/sh -c \"{init_script}\""
@@ -429,10 +434,10 @@ impl VmmBackend for FirecrackerBackend {
 
         tracing::info!(vm_id = %vm_id, bytes = raw_output.len(), "VM execution complete");
 
-        // Extract output between markers.
-        let stdout = extract_marked_output(&raw_output);
+        // Extract stdout, stderr, and exit code from the serial stream.
+        let (stdout, stderr, exit_code) = parse_execution_output(&raw_output);
 
-        Ok(ExecutionOutput { stdout })
+        Ok(ExecutionOutput { stdout, stderr, exit_code })
     }
 }
 
@@ -459,25 +464,118 @@ fn which_binary(path: &Path) -> Result<(), ExecutorError> {
     }
 }
 
-/// Extract bytes between `FORGE_OUTPUT_START` and `FORGE_OUTPUT_END` markers.
+/// Parse stdout, stderr, and exit code from raw serial console output.
 ///
-/// Falls back to the full raw output if markers are not found (e.g. the rootfs
-/// does not support the init script pattern).
-fn extract_marked_output(raw: &[u8]) -> Vec<u8> {
-    let start_marker = b"FORGE_OUTPUT_START\r\n";
-    let end_marker = b"FORGE_OUTPUT_END";
+/// Expects the output to contain base64-encoded sections delimited by:
+/// - `FORGE_STDOUT_B64_START` / `FORGE_STDOUT_B64_END`
+/// - `FORGE_STDERR_B64_START` / `FORGE_STDERR_B64_END`
+/// - `FORGE_EXIT:<code>`
+///
+/// # Returns
+/// `(stdout, stderr, exit_code)`. Falls back to `(raw, [], -1)` when markers
+/// are absent (e.g. rootfs does not support the init script pattern).
+fn parse_execution_output(raw: &[u8]) -> (Vec<u8>, Vec<u8>, i32) {
+    let stdout = extract_b64_section(raw, b"FORGE_STDOUT_B64_START", b"FORGE_STDOUT_B64_END");
+    let stderr = extract_b64_section(raw, b"FORGE_STDERR_B64_START", b"FORGE_STDERR_B64_END");
+    let exit_code = extract_exit_code(raw);
 
-    let start_pos = raw
-        .windows(start_marker.len())
-        .position(|w| w == start_marker)
-        .map(|p| p + start_marker.len());
+    match (stdout, stderr, exit_code) {
+        (Some(out), Some(err), Some(code)) => (out, err, code),
+        _ => (raw.to_vec(), Vec::new(), -1),
+    }
+}
 
-    let end_pos = raw
+/// Extract and base64-decode a section delimited by `start_marker` / `end_marker`.
+///
+/// Markers are expected to be followed by `\r\n` (serial console line endings).
+/// Returns `None` if either marker is absent or the base64 payload is invalid.
+fn extract_b64_section(raw: &[u8], start_marker: &[u8], end_marker: &[u8]) -> Option<Vec<u8>> {
+    let start_with_crlf: Vec<u8> = [start_marker, b"\r\n"].concat();
+
+    let content_start = raw
+        .windows(start_with_crlf.len())
+        .position(|w| w == start_with_crlf.as_slice())
+        .map(|p| p + start_with_crlf.len())?;
+
+    let content_end = raw[content_start..]
         .windows(end_marker.len())
-        .position(|w| w == end_marker);
+        .position(|w| w == end_marker)
+        .map(|p| p + content_start)?;
 
-    match (start_pos, end_pos) {
-        (Some(s), Some(e)) if s < e => raw[s..e].to_vec(),
-        _ => raw.to_vec(),
+    // Strip \r and \n before decoding — base64 lines are split by the shell.
+    let b64_clean: Vec<u8> = raw[content_start..content_end]
+        .iter()
+        .copied()
+        .filter(|&b| b != b'\r' && b != b'\n')
+        .collect();
+
+    base64::engine::general_purpose::STANDARD.decode(&b64_clean).ok()
+}
+
+/// Extract the integer exit code from a `FORGE_EXIT:<N>` line.
+///
+/// Returns `None` if the marker is absent or the value cannot be parsed.
+fn extract_exit_code(raw: &[u8]) -> Option<i32> {
+    let marker = b"FORGE_EXIT:";
+    let value_start = raw
+        .windows(marker.len())
+        .position(|w| w == marker)
+        .map(|p| p + marker.len())?;
+
+    let rest = &raw[value_start..];
+    let value_end = rest
+        .iter()
+        .position(|&b| b == b'\r' || b == b'\n')
+        .unwrap_or(rest.len());
+
+    std::str::from_utf8(&rest[..value_end]).ok()?.trim().parse().ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_b64_output(stdout: &[u8], stderr: &[u8], exit_code: i32) -> Vec<u8> {
+        use base64::Engine as _;
+        let stdout_b64 = base64::engine::general_purpose::STANDARD.encode(stdout);
+        let stderr_b64 = base64::engine::general_purpose::STANDARD.encode(stderr);
+        format!(
+            "kernel boot noise\r\nFORGE_STDOUT_B64_START\r\n{stdout_b64}\r\nFORGE_STDOUT_B64_END\r\n\
+             FORGE_STDERR_B64_START\r\n{stderr_b64}\r\nFORGE_STDERR_B64_END\r\n\
+             FORGE_EXIT:{exit_code}\r\n"
+        )
+        .into_bytes()
+    }
+
+    #[test]
+    fn parse_execution_output_extracts_stdout_and_stderr() {
+        let raw = make_b64_output(b"hello stdout\n", b"hello stderr\n", 0);
+        let (stdout, stderr, _) = parse_execution_output(&raw);
+        assert_eq!(stdout, b"hello stdout\n");
+        assert_eq!(stderr, b"hello stderr\n");
+    }
+
+    #[test]
+    fn parse_execution_output_decodes_base64() {
+        let binary_payload: Vec<u8> = (0u8..=255).collect();
+        let raw = make_b64_output(&binary_payload, b"", 0);
+        let (stdout, _, _) = parse_execution_output(&raw);
+        assert_eq!(stdout, binary_payload, "binary payload must survive base64 round-trip");
+    }
+
+    #[test]
+    fn parse_execution_output_fallback_on_missing_markers() {
+        let raw = b"raw serial output without any markers";
+        let (stdout, stderr, exit_code) = parse_execution_output(raw);
+        assert_eq!(stdout, raw, "fallback stdout must equal raw input");
+        assert!(stderr.is_empty(), "fallback stderr must be empty");
+        assert_eq!(exit_code, -1, "fallback exit code must be -1");
+    }
+
+    #[test]
+    fn parse_execution_output_extracts_exit_code() {
+        let raw = make_b64_output(b"out", b"err", 42);
+        let (_, _, exit_code) = parse_execution_output(&raw);
+        assert_eq!(exit_code, 42, "exit code must be extracted from FORGE_EXIT marker");
     }
 }

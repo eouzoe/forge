@@ -12,8 +12,12 @@ use crate::{ExecutorError, SnapshotId, VmConfig, VmHandle};
 /// Raw output captured from a run-to-completion VM execution.
 #[derive(Debug, Clone)]
 pub struct ExecutionOutput {
-    /// Bytes written to the serial console by the guest command.
+    /// Bytes written to the guest command's standard output.
     pub stdout: Vec<u8>,
+    /// Bytes written to the guest command's standard error.
+    pub stderr: Vec<u8>,
+    /// Exit code returned by the guest command.
+    pub exit_code: i32,
 }
 
 /// Virtual Machine Manager abstraction.
