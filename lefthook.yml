@@ -1,0 +1,28 @@
+# lefthook.yml — Forge pre-commit hooks
+
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.rs"
+      run: cargo fmt --check
+    clippy:
+      glob: "*.rs"
+      run: cargo clippy --workspace -- -D warnings -W clippy::pedantic
+    toml-check:
+      glob: "*.toml"
+      run: taplo fmt --check
+
+commit-msg:
+  commands:
+    conventional:
+      run: |
+        MSG=$(head -1 {1})
+        if ! echo "$MSG" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|chore)\(.+\): .+'; then
+          echo "❌ Commit message must follow conventional commits format:"
+          echo "   <type>(<scope>): <subject>"
+          echo ""
+          echo "   Types: feat, fix, docs, style, refactor, perf, test, chore"
+          echo "   Example: feat(gateway): add sandbox pool"
+          exit 1
+        fi
