@@ -1,7 +1,13 @@
 //! HTTP API gateway for the Forge deterministic execution fabric.
 //!
-//! Exposes block discovery, execution submission, and result retrieval
-//! endpoints for external clients and AI agents.
+//! Exposes sandbox lifecycle and code execution endpoints for the
+//! Deepractice `SandboX` isolator integration.
+//!
+//! See `docs/ARCHITECTURE.md` §4 for design rationale.
 
 #![warn(clippy::pedantic)]
 #![deny(clippy::unwrap_used)]
+
+pub mod error;
+pub mod pool;
+pub mod routes;

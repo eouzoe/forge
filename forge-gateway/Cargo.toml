@@ -1,6 +1,29 @@
 [package]
 name = "forge-gateway"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition = "2021"
+license.workspace = true
+
+[[bin]]
+name = "forge-gateway"
+path = "src/main.rs"
+
+[lib]
+name = "forge_gateway"
+path = "src/lib.rs"
 
 [dependencies]
+forge-core = { workspace = true }
+forge-executor = { path = "../forge-executor" }
+axum = "0.8"
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
