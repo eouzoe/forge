@@ -67,3 +67,57 @@ impl std::fmt::Display for SnapshotId {
         write!(f, "{}", self.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vm_config_custom_vcpu_and_mem_preserved() {
+        let mut config = VmConfig::new(
+            PathBuf::from("/tmp/vmlinux"),
+            PathBuf::from("/tmp/rootfs.ext4"),
+        );
+        config.vcpu_count = 4;
+        config.mem_size_mib = 512;
+        assert_eq!(config.vcpu_count, 4, "custom vcpu_count must be preserved");
+        assert_eq!(config.mem_size_mib, 512, "custom mem_size_mib must be preserved");
+    }
+
+    #[test]
+    fn vm_config_serialization_roundtrip() {
+        let config = VmConfig::new(
+            PathBuf::from("/tmp/vmlinux"),
+            PathBuf::from("/tmp/rootfs.ext4"),
+        );
+        let json = match serde_json::to_string(&config) {
+            Ok(s) => s,
+            Err(e) => panic!("serialization failed: {e}"),
+        };
+        let restored: VmConfig = match serde_json::from_str(&json) {
+            Ok(c) => c,
+            Err(e) => panic!("deserialization failed: {e}"),
+        };
+        assert_eq!(config.kernel_path, restored.kernel_path);
+        assert_eq!(config.rootfs_path, restored.rootfs_path);
+        assert_eq!(config.vcpu_count, restored.vcpu_count);
+        assert_eq!(config.mem_size_mib, restored.mem_size_mib);
+    }
+
+    #[test]
+    fn snapshot_id_equality_same_uuid() {
+        use uuid::Uuid;
+        let uuid = Uuid::new_v4();
+        let a = SnapshotId(uuid);
+        let b = SnapshotId(uuid);
+        assert_eq!(a, b, "SnapshotIds with the same UUID must be equal");
+    }
+
+    #[test]
+    fn snapshot_id_display_is_uuid_format() {
+        let id = SnapshotId::new();
+        let s = id.to_string();
+        assert_eq!(s.len(), 36, "UUID string must be 36 chars");
+        assert_eq!(s.chars().filter(|&c| c == '-').count(), 4, "UUID must have 4 dashes");
+    }
+}

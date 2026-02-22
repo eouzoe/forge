@@ -87,4 +87,87 @@ mod tests {
         let v0 = SemVer::new(0, 0, 0);
         assert_eq!(v0.to_string(), "0.0.0");
     }
+
+    #[test]
+    fn content_hash_as_bytes_returns_raw_bytes() {
+        let bytes = [0xab_u8; 32];
+        let hash = ContentHash::new(bytes);
+        assert_eq!(hash.as_bytes(), &bytes, "as_bytes must return the original array");
+    }
+
+    #[test]
+    fn content_hash_equality_same_bytes() {
+        let bytes = [0x42_u8; 32];
+        let a = ContentHash::new(bytes);
+        let b = ContentHash::new(bytes);
+        assert_eq!(a, b, "ContentHashes with identical bytes must be equal");
+    }
+
+    #[test]
+    fn trust_score_value_returns_inner_f64() {
+        let score = match TrustScore::new(0.75) {
+            Ok(s) => s,
+            Err(e) => panic!("unexpected error: {e}"),
+        };
+        assert!((score.value() - 0.75).abs() < f64::EPSILON, "value() must return the inner f64");
+    }
+
+    #[test]
+    fn trust_score_display_formats_to_4_decimal_places() {
+        let score = match TrustScore::new(0.5) {
+            Ok(s) => s,
+            Err(e) => panic!("unexpected error: {e}"),
+        };
+        assert_eq!(score.to_string(), "0.5000", "Display must format to 4 decimal places");
+    }
+
+    #[test]
+    fn trust_score_try_from_valid_value_succeeds() {
+        let result = TrustScore::try_from(0.9_f64);
+        assert!(result.is_ok(), "TryFrom valid value must succeed");
+    }
+
+    #[test]
+    fn execution_record_new_sets_correct_fields() {
+        use std::time::Duration;
+        use chrono::Utc;
+        use crate::execution::ExecutionStatus;
+        use crate::id::{BlockId, ContentHash, UserId};
+
+        let block_id = BlockId::new();
+        let user_id = UserId::new("test-user");
+        let input_hash = ContentHash::new([0u8; 32]);
+        let output_hash = ContentHash::new([1u8; 32]);
+        let started_at = Utc::now();
+        let duration = Duration::from_millis(100);
+
+        let record = ExecutionRecord::new(
+            block_id,
+            user_id.clone(),
+            input_hash,
+            output_hash,
+            started_at,
+            duration,
+            ExecutionStatus::Succeeded,
+        );
+
+        assert_eq!(record.block_id, block_id);
+        assert_eq!(record.user_id, user_id);
+        assert_eq!(record.input_hash, input_hash);
+        assert_eq!(record.output_hash, output_hash);
+        assert_eq!(record.duration, duration);
+        assert!(record.vm_snapshot_id.is_none(), "vm_snapshot_id must default to None");
+    }
+
+    #[test]
+    fn execution_status_failed_contains_reason() {
+        use crate::execution::ExecutionStatus;
+        let status = ExecutionStatus::Failed { reason: "out of memory".to_owned() };
+        match status {
+            ExecutionStatus::Failed { reason } => {
+                assert_eq!(reason, "out of memory");
+            }
+            other => panic!("expected Failed, got {other:?}"),
+        }
+    }
 }

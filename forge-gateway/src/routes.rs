@@ -251,4 +251,61 @@ mod tests {
         assert!(json.contains("\"exit_code\":0"), "missing exit_code field");
         assert!(json.contains("\"execution_time_ms\":42"), "missing execution_time_ms field");
     }
+
+    #[tokio::test]
+    async fn create_sandbox_invalid_runtime_returns_400() {
+        let app = create_router(test_pool());
+        let req = match Request::builder()
+            .method("POST")
+            .uri("/v1/sandbox")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"runtime":"ruby"}"#))
+        {
+            Ok(r) => r,
+            Err(e) => panic!("failed to build request: {e}"),
+        };
+        let resp = match app.oneshot(req).await {
+            Ok(r) => r,
+            Err(e) => panic!("handler error: {e}"),
+        };
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "unsupported runtime must return 400");
+    }
+
+    #[tokio::test]
+    async fn create_sandbox_valid_runtime_returns_201() {
+        let app = create_router(test_pool());
+        let req = match Request::builder()
+            .method("POST")
+            .uri("/v1/sandbox")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"runtime":"node"}"#))
+        {
+            Ok(r) => r,
+            Err(e) => panic!("failed to build request: {e}"),
+        };
+        let resp = match app.oneshot(req).await {
+            Ok(r) => r,
+            Err(e) => panic!("handler error: {e}"),
+        };
+        assert_eq!(resp.status(), StatusCode::CREATED, "valid runtime must return 201");
+    }
+
+    #[tokio::test]
+    async fn destroy_sandbox_not_found_returns_404() {
+        let app = create_router(test_pool());
+        let unknown_id = uuid::Uuid::new_v4();
+        let req = match Request::builder()
+            .method("DELETE")
+            .uri(format!("/v1/sandbox/{unknown_id}"))
+            .body(Body::empty())
+        {
+            Ok(r) => r,
+            Err(e) => panic!("failed to build request: {e}"),
+        };
+        let resp = match app.oneshot(req).await {
+            Ok(r) => r,
+            Err(e) => panic!("handler error: {e}"),
+        };
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND, "unknown sandbox must return 404");
+    }
 }

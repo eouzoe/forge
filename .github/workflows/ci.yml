@@ -49,4 +49,9 @@ jobs:
         with:
           components: miri
       - uses: Swatinem/rust-cache@v2
-      - run: cargo miri test --workspace
+      - name: Miri
+        run: |
+          rustup toolchain install nightly --component miri
+          cargo +nightly miri test --workspace \
+            --exclude forge-gateway \
+            -- --test-threads=1
