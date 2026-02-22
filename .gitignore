@@ -1,5 +1,6 @@
 # Build
 /target/
+fuzz/target/
 **/*.rs.bk
 *.pdb
 
