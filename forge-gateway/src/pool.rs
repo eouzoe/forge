@@ -3,11 +3,9 @@
 //! Tracks active sandbox IDs and their metadata. In the MVP stage no VM is
 //! actually spawned — the pool manages ID-to-metadata mappings only.
 
-use std::{
-    collections::HashMap,
-    sync::RwLock,
-    time::Instant,
-};
+use std::{sync::RwLock, time::Instant};
+
+use indexmap::IndexMap;
 
 use uuid::Uuid;
 
@@ -23,7 +21,7 @@ pub struct SandboxEntry {
 /// Thread-safe registry of active sandboxes.
 #[derive(Debug, Default)]
 pub struct SandboxPool {
-    entries: RwLock<HashMap<Uuid, SandboxEntry>>,
+    entries: RwLock<IndexMap<Uuid, SandboxEntry>>,
 }
 
 impl SandboxPool {
