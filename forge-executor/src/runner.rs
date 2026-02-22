@@ -174,4 +174,36 @@ mod tests {
         assert!(cmd.contains("git-env"), "command must include block name");
         assert!(cmd.starts_with("echo"), "MVP command must use echo");
     }
+
+    proptest::proptest! {
+        #[test]
+        fn proptest_hash_output_always_64_hex_chars(
+            stdout in proptest::collection::vec(proptest::prelude::any::<u8>(), 0..512usize),
+            stderr in proptest::collection::vec(proptest::prelude::any::<u8>(), 0..512usize),
+        ) {
+            let hash = compute_hash(&stdout, &stderr);
+            let hex = hash.to_string();
+            proptest::prop_assert_eq!(hex.len(), 64, "SHA-256 hex must always be 64 chars");
+            proptest::prop_assert!(
+                hex.chars().all(|c| c.is_ascii_hexdigit()),
+                "SHA-256 hex must contain only hex digits"
+            );
+        }
+
+        #[test]
+        fn proptest_hash_order_matters_stdout_before_stderr(
+            a in proptest::collection::vec(proptest::prelude::any::<u8>(), 1..64usize),
+            b in proptest::collection::vec(proptest::prelude::any::<u8>(), 1..64usize),
+        ) {
+            proptest::prop_assume!(a != b);
+            let hash_ab = compute_hash(&a, &b);
+            let hash_ba = compute_hash(&b, &a);
+            // stdout and stderr are concatenated in order, so swapping them
+            // must produce a different hash (unless a == b, excluded above).
+            proptest::prop_assert_ne!(
+                hash_ab, hash_ba,
+                "swapping stdout and stderr must change the hash"
+            );
+        }
+    }
 }

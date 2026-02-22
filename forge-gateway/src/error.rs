@@ -51,4 +51,24 @@ mod tests {
         let resp = bad_req.into_response();
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
+
+    #[test]
+    fn gateway_error_executor_variant_returns_500() {
+        use forge_executor::ExecutorError;
+        let exec_err = ExecutorError::SpawnFailed("vm died".to_owned());
+        let gw_err = GatewayError::Executor(exec_err);
+        let resp = gw_err.into_response();
+        assert_eq!(
+            resp.status(),
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Executor errors must map to 500"
+        );
+    }
+
+    #[test]
+    fn gateway_error_display_includes_message() {
+        let err = GatewayError::InvalidRequest("bad runtime".to_owned());
+        let msg = err.to_string();
+        assert!(msg.contains("bad runtime"), "Display must include the message");
+    }
 }

@@ -578,4 +578,56 @@ mod tests {
         let (_, _, exit_code) = parse_execution_output(&raw);
         assert_eq!(exit_code, 42, "exit code must be extracted from FORGE_EXIT marker");
     }
+
+    #[test]
+    fn extract_exit_code_negative_value_is_parsed() {
+        let raw = b"FORGE_EXIT:-1\r\n";
+        let code = extract_exit_code(raw);
+        assert_eq!(code, Some(-1), "negative exit code must be parsed correctly");
+    }
+
+    #[test]
+    fn extract_exit_code_missing_marker_returns_none() {
+        let raw = b"no marker here";
+        assert_eq!(extract_exit_code(raw), None, "missing marker must return None");
+    }
+
+    #[test]
+    fn extract_b64_section_missing_start_returns_none() {
+        let raw = b"FORGE_STDOUT_B64_END\r\n";
+        let result = extract_b64_section(raw, b"FORGE_STDOUT_B64_START", b"FORGE_STDOUT_B64_END");
+        assert!(result.is_none(), "missing start marker must return None");
+    }
+
+    #[test]
+    fn parse_execution_output_empty_stdout_and_stderr() {
+        let raw = make_b64_output(b"", b"", 0);
+        let (stdout, stderr, exit_code) = parse_execution_output(&raw);
+        assert!(stdout.is_empty(), "empty stdout must decode to empty vec");
+        assert!(stderr.is_empty(), "empty stderr must decode to empty vec");
+        assert_eq!(exit_code, 0);
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn proptest_exit_code_roundtrip(code in proptest::prelude::any::<i32>()) {
+            let raw = format!("FORGE_EXIT:{code}\r\n").into_bytes();
+            let extracted = extract_exit_code(&raw);
+            proptest::prop_assert_eq!(extracted, Some(code));
+        }
+
+        #[test]
+        fn proptest_base64_roundtrip(
+            data in proptest::collection::vec(proptest::prelude::any::<u8>(), 0..512usize)
+        ) {
+            use base64::Engine as _;
+            let encoded = base64::engine::general_purpose::STANDARD.encode(&data);
+            let decoded = base64::engine::general_purpose::STANDARD
+                .decode(&encoded)
+                .map_err(|e| proptest::test_runner::TestCaseError::fail(
+                    format!("base64 decode of freshly encoded data failed: {e}")
+                ))?;
+            proptest::prop_assert_eq!(decoded, data, "base64 encode→decode must be identity");
+        }
+    }
 }
