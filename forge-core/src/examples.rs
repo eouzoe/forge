@@ -53,14 +53,8 @@ pub fn example_blocks() -> Vec<Block> {
                 kind: DependencyKind::Runtime,
             }],
             provides: vec![
-                Capability {
-                    name: "rustc".to_owned(),
-                    version: SemVer::new(1, 82, 0),
-                },
-                Capability {
-                    name: "cargo".to_owned(),
-                    version: SemVer::new(1, 82, 0),
-                },
+                Capability { name: "rustc".to_owned(), version: SemVer::new(1, 82, 0) },
+                Capability { name: "cargo".to_owned(), version: SemVer::new(1, 82, 0) },
             ],
             cognitive_load: CognitiveLoad::Medium,
             minimum_trust_level: TrustLevel::One,

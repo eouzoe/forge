@@ -37,6 +37,7 @@ fn make_vm_config() -> VmConfig {
 /// This is the core MVP proof: same block + same input = same output hash.
 #[tokio::test]
 #[ignore = "requires KVM and Firecracker binary at /usr/local/bin/firecracker"]
+#[cfg_attr(miri, ignore)]
 async fn git_block_five_runs_produce_identical_hash() {
     let backend = make_backend();
     let vm_config = make_vm_config();
@@ -89,16 +90,14 @@ async fn git_block_five_runs_produce_identical_hash() {
 /// Smoke test: a single VM execution completes without error.
 #[tokio::test]
 #[ignore = "requires KVM and Firecracker binary at /usr/local/bin/firecracker"]
+#[cfg_attr(miri, ignore)]
 async fn single_vm_execution_completes() {
     let backend = make_backend();
     let vm_config = make_vm_config();
     let runner = BlockRunner::with_timeout(backend, vm_config, Duration::from_secs(30));
 
     let blocks = example_blocks();
-    let record = runner
-        .execute(&blocks[0], b"")
-        .await
-        .expect("execution should succeed");
+    let record = runner.execute(&blocks[0], b"").await.expect("execution should succeed");
 
     assert_eq!(record.block_id, blocks[0].id);
     // output_hash must be non-zero (SHA-256 of non-empty output)

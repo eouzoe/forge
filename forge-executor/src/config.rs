@@ -74,10 +74,8 @@ mod tests {
 
     #[test]
     fn vm_config_custom_vcpu_and_mem_preserved() {
-        let mut config = VmConfig::new(
-            PathBuf::from("/tmp/vmlinux"),
-            PathBuf::from("/tmp/rootfs.ext4"),
-        );
+        let mut config =
+            VmConfig::new(PathBuf::from("/tmp/vmlinux"), PathBuf::from("/tmp/rootfs.ext4"));
         config.vcpu_count = 4;
         config.mem_size_mib = 512;
         assert_eq!(config.vcpu_count, 4, "custom vcpu_count must be preserved");
@@ -86,10 +84,8 @@ mod tests {
 
     #[test]
     fn vm_config_serialization_roundtrip() {
-        let config = VmConfig::new(
-            PathBuf::from("/tmp/vmlinux"),
-            PathBuf::from("/tmp/rootfs.ext4"),
-        );
+        let config =
+            VmConfig::new(PathBuf::from("/tmp/vmlinux"), PathBuf::from("/tmp/rootfs.ext4"));
         let json = match serde_json::to_string(&config) {
             Ok(s) => s,
             Err(e) => panic!("serialization failed: {e}"),

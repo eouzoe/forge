@@ -171,6 +171,7 @@ mod tests {
 
     proptest::proptest! {
         #[test]
+        #[cfg_attr(miri, ignore)]
         fn proptest_hash_output_always_64_hex_chars(
             stdout in proptest::collection::vec(proptest::prelude::any::<u8>(), 0..512usize),
             stderr in proptest::collection::vec(proptest::prelude::any::<u8>(), 0..512usize),
@@ -185,6 +186,7 @@ mod tests {
         }
 
         #[test]
+        #[cfg_attr(miri, ignore)]
         fn proptest_hash_order_matters_stdout_before_stderr(
             a in proptest::collection::vec(proptest::prelude::any::<u8>(), 1..64usize),
             b in proptest::collection::vec(proptest::prelude::any::<u8>(), 1..64usize),

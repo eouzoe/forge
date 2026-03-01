@@ -25,6 +25,7 @@ fn test_config() -> VmConfig {
 
 #[tokio::test]
 #[ignore = "requires KVM and Firecracker binary"]
+#[cfg_attr(miri, ignore)]
 async fn spawn_vm_starts_and_responds() {
     let backend = test_backend();
     let config = test_config();
@@ -38,16 +39,14 @@ async fn spawn_vm_starts_and_responds() {
     println!("VM socket: {}", handle.socket_path.display());
 
     // Verify process is alive
-    assert!(
-        handle.socket_path.exists(),
-        "socket should exist while VM is running"
-    );
+    assert!(handle.socket_path.exists(), "socket should exist while VM is running");
 
     backend.terminate(handle).await.expect("terminate failed");
 }
 
 #[tokio::test]
 #[ignore = "requires KVM and Firecracker binary"]
+#[cfg_attr(miri, ignore)]
 async fn snapshot_creates_recoverable_state() {
     let backend = test_backend();
     let config = test_config();
@@ -76,6 +75,7 @@ async fn snapshot_creates_recoverable_state() {
 
 #[tokio::test]
 #[ignore = "requires KVM and Firecracker binary"]
+#[cfg_attr(miri, ignore)]
 async fn restore_from_snapshot_succeeds() {
     let backend = test_backend();
     let config = test_config();
@@ -101,10 +101,7 @@ async fn restore_from_snapshot_succeeds() {
     println!("Restore time: {restore_time:?}");
     println!("Restored VM id: {}", restored.id);
 
-    assert!(
-        restored.socket_path.exists(),
-        "restored VM socket should exist"
-    );
+    assert!(restored.socket_path.exists(), "restored VM socket should exist");
     assert_ne!(restored.id, original_id, "restored VM should have a new ID");
 
     backend.terminate(restored).await.expect("terminate restored failed");
