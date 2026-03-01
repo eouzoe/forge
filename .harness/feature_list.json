@@ -1,0 +1,119 @@
+{
+  "version": "0.1.0",
+  "generated_by": "opus-4.6",
+  "generated_at": "2026-02-25",
+  "context": "Quality hardening — 對標 Firecracker / rustc 編譯器級品質標準",
+  "features": [
+    {
+      "id": "Q001",
+      "category": "quality",
+      "priority": "P0",
+      "description": "Workspace 級 lint 統一：移除各 crate lib.rs 手動 lint，改用 [workspace.lints]",
+      "beads_id": null,
+      "steps": [
+        "在根 Cargo.toml [profile.release] 之後加入 [workspace.lints.rust] 和 [workspace.lints.clippy] 區段",
+        "rust lints: future_incompatible=deny, rust_2018_idioms=deny, missing_docs=warn, unsafe_code=forbid",
+        "clippy lints: pedantic=warn, unwrap_used=deny, expect_used=deny, nursery=warn, cargo=warn",
+        "每個 crate Cargo.toml 加入 [lints] workspace = true",
+        "forge-auditor 和 forge-nix 的 edition 從 2024 改成 edition.workspace = true",
+        "同時補上 version.workspace = true 和 license.workspace = true",
+        "刪除所有 lib.rs 中的 #![warn(clippy::pedantic)] 和 #![deny(clippy::unwrap_used)]",
+        "cargo clippy --workspace -- -D warnings 驗證通過",
+        "如果 nursery/cargo lint 有無法修復的 warning，用 #[allow()] + reason 標記"
+      ],
+      "passes": true
+    },
+    {
+      "id": "Q002",
+      "category": "quality",
+      "priority": "P0",
+      "description": "Release profile 加 overflow-checks=true，修正 rust-version 不一致",
+      "beads_id": null,
+      "steps": [
+        "根 Cargo.toml [profile.release] 加入 overflow-checks = true",
+        "rust-version 從 1.82 改為 1.85（2024 edition MSRV）",
+        "cargo check --workspace 驗證通過"
+      ],
+      "passes": true
+    },
+    {
+      "id": "Q003",
+      "category": "quality",
+      "priority": "P0",
+      "description": "MIRI 修復：為所有 I/O / async / proptest 測試加 #[cfg_attr(miri, ignore)]",
+      "beads_id": null,
+      "steps": [
+        "跑 cargo +nightly miri test --workspace --exclude forge-gateway -- --test-threads=1 記錄失敗",
+        "對每個失敗的 test 加 #[cfg_attr(miri, ignore)]",
+        "已知需標記：health_check_fails_without_kvm（async+fs）、所有 tokio::test、proptest tests",
+        "重跑 MIRI 直到通過"
+      ],
+      "acceptance": "cargo +nightly miri test --workspace --exclude forge-gateway -- --test-threads=1 全部通過",
+      "passes": false
+    },
+    {
+      "id": "Q004",
+      "category": "devops",
+      "priority": "P1",
+      "description": "建立 deny.toml 供應鏈安全配置（從 bose-search 移植）",
+      "beads_id": null,
+      "steps": [
+        "從 bose-search/deny.toml 複製並調整（forge 不用 ring，移除 ring clarify）",
+        "advisories: yanked=deny",
+        "licenses: allow MIT/Apache-2.0/BSD-2/BSD-3/ISC/Unicode-DFS-2016/Unicode-3.0",
+        "bans: multiple-versions=warn, wildcards=deny",
+        "sources: unknown-registry=deny, unknown-git=deny",
+        "本地跑 cargo deny check 驗證（如果有裝）"
+      ],
+      "acceptance": "deny.toml 存在且 cargo deny check 通過（或記錄需要的 exceptions）",
+      "passes": false
+    },
+    {
+      "id": "Q005",
+      "category": "devops",
+      "priority": "P1",
+      "description": "CI 強化：加 cargo-deny 和 security audit jobs，簡化 clippy flags",
+      "beads_id": null,
+      "steps": [
+        "在 .github/workflows/ci.yml 加 deny job（EmbarkStudios/cargo-deny-action@v2）",
+        "加 audit job（rustsec/audit-check@v2）",
+        "clippy job 移除 -W clippy::pedantic（workspace lints 已處理），只留 -D warnings",
+        "驗證 YAML 語法正確"
+      ],
+      "acceptance": "ci.yml 有 6 個 jobs: test, clippy, fmt, miri, deny, audit",
+      "passes": false
+    },
+    {
+      "id": "Q006",
+      "category": "devops",
+      "priority": "P1",
+      "description": "建立 lefthook.yml git hooks（從 bose-search 移植）",
+      "beads_id": null,
+      "steps": [
+        "從 bose-search/lefthook.yml 複製並調整",
+        "pre-commit: cargo fmt --check, cargo clippy -- -D warnings, typos",
+        "pre-push: cargo test --workspace, cargo deny check",
+        "commit-msg: conventional commits 格式檢查",
+        "如果 lefthook 未安裝，在 progress.md 記錄安裝指令"
+      ],
+      "acceptance": "lefthook.yml 存在，格式正確",
+      "passes": false
+    },
+    {
+      "id": "Q007",
+      "category": "quality",
+      "priority": "P2",
+      "description": "補齊所有 pub items 的 doc comments，升級 missing_docs 為 deny",
+      "beads_id": null,
+      "steps": [
+        "cargo doc --workspace --no-deps 2>&1 | grep missing 統計缺少數量",
+        "為所有 pub fn/struct/enum/trait/type 加 /// doc comment（最少一行）",
+        "re-export 項目不需重複寫",
+        "確認零 warning 後，根 Cargo.toml 的 missing_docs 從 warn 改為 deny",
+        "cargo clippy --workspace -- -D warnings 最終驗證"
+      ],
+      "acceptance": "missing_docs = deny 且 cargo doc --workspace --no-deps 零 warning",
+      "passes": false
+    }
+  ]
+}

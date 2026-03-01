@@ -54,6 +54,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore)]
     async fn health_check_fails_without_kvm() {
         use crate::{FirecrackerBackend, VmmBackend};
 

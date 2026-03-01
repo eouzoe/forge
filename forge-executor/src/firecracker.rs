@@ -558,6 +558,7 @@ mod tests {
 
     proptest::proptest! {
         #[test]
+        #[cfg_attr(miri, ignore)]
         fn proptest_exit_code_roundtrip(code in proptest::prelude::any::<i32>()) {
             let raw = format!("FORGE_EXIT:{code}\r\n").into_bytes();
             let extracted = extract_exit_code(&raw);
@@ -565,6 +566,7 @@ mod tests {
         }
 
         #[test]
+        #[cfg_attr(miri, ignore)]
         fn proptest_base64_roundtrip(
             data in proptest::collection::vec(proptest::prelude::any::<u8>(), 0..512usize)
         ) {

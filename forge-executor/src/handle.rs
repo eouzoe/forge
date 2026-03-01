@@ -29,11 +29,6 @@ impl VmHandle {
     /// Create a new VM handle.
     #[must_use]
     pub fn new(id: Uuid, socket_path: PathBuf, process: tokio::process::Child) -> Self {
-        Self {
-            id,
-            socket_path,
-            process,
-            created_at: Utc::now(),
-        }
+        Self { id, socket_path, process, created_at: Utc::now() }
     }
 }

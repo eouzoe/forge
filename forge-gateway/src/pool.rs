@@ -52,11 +52,7 @@ impl SandboxPool {
     /// Panics if the internal `RwLock` is poisoned.
     pub fn remove(&self, id: Uuid) -> bool {
         #[expect(clippy::expect_used, reason = "lock poisoning is unrecoverable")]
-        self.entries
-            .write()
-            .expect("sandbox pool write lock poisoned")
-            .shift_remove(&id)
-            .is_some()
+        self.entries.write().expect("sandbox pool write lock poisoned").shift_remove(&id).is_some()
     }
 
     /// Return `true` if the sandbox ID is currently registered.
@@ -66,10 +62,7 @@ impl SandboxPool {
     #[must_use]
     pub fn contains(&self, id: Uuid) -> bool {
         #[expect(clippy::expect_used, reason = "lock poisoning is unrecoverable")]
-        self.entries
-            .read()
-            .expect("sandbox pool read lock poisoned")
-            .contains_key(&id)
+        self.entries.read().expect("sandbox pool read lock poisoned").contains_key(&id)
     }
 }
 
@@ -109,8 +102,8 @@ mod tests {
 
     #[tokio::test]
     async fn sandbox_pool_concurrent_create_all_unique() {
-        use std::sync::Arc;
         use std::collections::HashSet;
+        use std::sync::Arc;
 
         let pool = Arc::new(SandboxPool::new());
         let mut handles = Vec::new();

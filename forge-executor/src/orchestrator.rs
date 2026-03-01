@@ -23,10 +23,7 @@ impl<B: VmmBackend> VmOrchestrator<B> {
     /// Create a new orchestrator backed by the given VMM.
     #[must_use]
     pub fn new(backend: B) -> Self {
-        Self {
-            backend,
-            active_vms: Arc::new(Mutex::new(BTreeSet::new())),
-        }
+        Self { backend, active_vms: Arc::new(Mutex::new(BTreeSet::new())) }
     }
 
     /// Spawn a new VM and register it in the active registry.
@@ -129,12 +126,14 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore)]
     async fn orchestrator_active_count_starts_at_zero() {
         let orch = VmOrchestrator::new(AlwaysFailBackend);
         assert_eq!(orch.active_count().await, 0, "new orchestrator must have zero active VMs");
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore)]
     async fn orchestrator_spawn_propagates_backend_error() {
         let orch = VmOrchestrator::new(AlwaysFailBackend);
         let config = VmConfig::new(PathBuf::from("/tmp/k"), PathBuf::from("/tmp/r"));
@@ -146,6 +145,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore)]
     async fn orchestrator_terminate_unregistered_returns_vm_not_found() {
         let orch = VmOrchestrator::new(AlwaysFailBackend);
         // Spawn a real tokio child so we can build a VmHandle.
@@ -162,6 +162,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore)]
     async fn orchestrator_snapshot_unregistered_returns_vm_not_found() {
         let orch = VmOrchestrator::new(AlwaysFailBackend);
         let child = match tokio::process::Command::new("true").spawn() {

@@ -6,9 +6,9 @@
 
 **Forge** — 確定性執行 Fabric。Nix 可重現性 + Firecracker microVM 隔離 + SHA-256 輸出驗證。
 
-- 語言: Rust (stable 1.92+)
+- 語言: Rust (stable 1.85+, MSRV 1.85)
 - 用戶語言: 繁體中文
-- 品質標準: clippy pedantic 零警告
+- 品質標準: workspace lints (clippy pedantic 零警告, unsafe_code = forbid)
 - GitHub: github.com/eouzoe/forge
 
 ## 1. Workspace 結構
@@ -43,7 +43,7 @@ forge/
 - stdout/stderr 分離：base64 編碼 + 協議標記 (FORGE_STDOUT_B64_START/END)
 - init script 嵌入 kernel boot args，VM 執行完自動 poweroff
 - VmmBackend 抽象：今天 Firecracker，未來 libkrun
-- 錯誤處理：thiserror everywhere, #![deny(clippy::unwrap_used)]
+- 錯誤處理：thiserror everywhere, workspace lints deny(unwrap_used, expect_used)
 
 ## 4. 當前目標：SandboX 整合
 
@@ -58,19 +58,35 @@ forge-gateway 提供 HTTP API，讓 TypeScript ForgeIsolator 調用：
 ## 5. 開發規範
 
 - 格式化: `cargo fmt`
-- Linting: `cargo clippy --workspace -- -D warnings -W clippy::pedantic`
+- Linting: `cargo clippy --workspace -- -D warnings`
 - 測試: `cargo test --workspace`
+- MIRI: `cargo +nightly miri test --workspace --exclude forge-gateway -- --test-threads=1`
 - 提交: Conventional Commits (feat|fix|docs|style|refactor|perf|test|chore)
 - 全局風格: `~/.claude/rules/bose-style.md` (20 章節)
+
+### 5.5 雙窗口工作流
+
+見 `~/.claude/rules/workflow.md`（自動載入）。
+
+```bash
+# 啟動執行窗口
+cd ~/src/active/forge && claude --model sonnet --dangerously-skip-permissions -p \
+  "讀取 @CLAUDE.md @.harness/feature_list.json @.harness/progress.md @~/src/active/.harness/prompts/coding-agent.xml 然後 bd ready 開始工作"
+```
+
+任務追蹤：
+- `.harness/feature_list.json` — 結構化功能清單
+- `.harness/progress.md` — 跨 session 進度
+- `bd ready` / `bd show` / `bd close` — beads 任務隊列
 
 ## 6. 環境
 
 | 項目 | 值 |
 |------|-----|
 | OS | Linux 6.6 (WSL2) |
-| Rust | 1.92.0 (stable) |
+| Rust | 1.85+ (MSRV 1.85) |
 | KVM | 需要 nestedVirtualization=true |
 | Firecracker | 需要 /dev/kvm + kvm group |
 
 ---
-**版本**: 1.0 | **最後更新**: 2026-02-21
+**版本**: 1.1 | **最後更新**: 2026-02-26
