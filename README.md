@@ -1,4 +1,4 @@
-# Forge
+# Apeiron
 
 There is a particular kind of frustration that every engineer knows.
 
@@ -8,13 +8,13 @@ We have spent decades building elaborate rituals to cope with this — container
 
 The disease is entropy. The quiet, relentless intrusion of the outside world into systems that were meant to be closed.
 
-Forge exists because I wanted to build something where entropy has no foothold.
+Apeiron exists because I wanted to build something where entropy has no foothold.
 
 ---
 
 ## What This Is
 
-Forge is a deterministic execution fabric.
+Apeiron is a deterministic execution fabric.
 
 It runs tasks inside Firecracker microVMs, built from Nix derivations, where every input is content-addressed and every output is cryptographically verified. The same block, given the same input, produces the same output — not as an aspiration, but as a mathematical invariant.
 
@@ -24,7 +24,7 @@ A single Rust binary. Self-hosted. No external services. No subscriptions. No tr
 
 ## The Building Block Model
 
-Forge organises computation into **blocks** — self-contained units of capability, each described by a manifest and backed by a Nix derivation.
+Apeiron organises computation into **blocks** — self-contained units of capability, each described by a manifest and backed by a Nix derivation.
 
 A block might be a Git environment. A Rust toolchain. A search engine. A security scanner. Blocks compose: a Rust development environment depends on Git, and a CI pipeline depends on both.
 
@@ -45,11 +45,11 @@ Block: rust-dev-env
 
 ```
 crates/
-├── forge-core/       Domain types: Block, Manifest, ExecutionRecord, TrustScore
-├── forge-executor/   VM lifecycle: VmmBackend trait, Firecracker, BlockRunner
-├── forge-nix/        Nix derivation → microVM image pipeline [planned]
-├── forge-auditor/    Automated review: schema, security, determinism [planned]
-└── forge-gateway/    HTTP API + SSE real-time status [planned]
+├── Apeiron-core/       Domain types: Block, Manifest, ExecutionRecord, TrustScore
+├── Apeiron-executor/   VM lifecycle: VmmBackend trait, Firecracker, BlockRunner
+├── Apeiron-nix/        Nix derivation → microVM image pipeline [planned]
+├── Apeiron-auditor/    Automated review: schema, security, determinism [planned]
+└── Apeiron-gateway/    HTTP API + SSE real-time status [planned]
 ```
 
 The executor is backend-agnostic. `VmmBackend` is a trait — Firecracker today, libkrun or others tomorrow. The abstraction exists not for theoretical purity, but because the right VMM depends on the deployment context, and that context will change.
@@ -94,7 +94,7 @@ I am building this alone, and I am building it properly. Every public type has d
 
 Honesty about boundaries is more useful than pretending they don't exist.
 
-**Kernel determinism.** Nix guarantees hermetic builds, but the kernel sits beneath that guarantee. Different kernel versions or CPU microcode can produce subtly different behaviour for the same binary. The kernel is already a parameter in `VmConfig`, but it is not yet content-addressed through Nix. Until it is, determinism depends on the host environment. This is the first thing `forge-nix` will address.
+**Kernel determinism.** Nix guarantees hermetic builds, but the kernel sits beneath that guarantee. Different kernel versions or CPU microcode can produce subtly different behaviour for the same binary. The kernel is already a parameter in `VmConfig`, but it is not yet content-addressed through Nix. Until it is, determinism depends on the host environment. This is the first thing `Apeiron-nix` will address.
 
 **Output canonicalisation.** The current SHA-256 hash covers raw stdout and stderr. Many tools emit timestamps, PIDs, or temporary paths that vary between runs. A block running `cargo build` will produce different hashes even if the compilation is semantically identical. The audit engine will need a normalisation pipeline — stripping non-deterministic artefacts before hashing — or blocks will need to declare which output fields are deterministic. This is an unsolved design problem, not a missing feature.
 
@@ -107,8 +107,8 @@ Honesty about boundaries is more useful than pretending they don't exist.
 Requirements: Rust 1.82+, KVM (`/dev/kvm`), Firecracker binary
 
 ```bash
-git clone https://github.com/eouzoe/forge.git
-cd forge
+git clone https://github.com/eouzoe/apeiron.git
+cd apeiron
 cargo build --workspace
 cargo test --workspace
 ```
