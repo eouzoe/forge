@@ -1,0 +1,14 @@
+# .cargo/config.toml — Forge workspace linker and target configuration
+#
+# wild is the dev linker (fast incremental builds).
+# sccache is set via RUSTC_WRAPPER in the devShell shellHook, not here.
+
+[target.x86_64-unknown-linux-gnu]
+# clang handles -m64 translation; wild provides fast linking.
+# Both clang and wild are provided by the nix devShell.
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=wild"]
+
+[target.x86_64-unknown-linux-musl]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=wild"]
