@@ -1,0 +1,21 @@
+# .gitleaks.toml — Forge secrets detection configuration
+# https://github.com/gitleaks/gitleaks
+
+title = "Forge Gitleaks Configuration"
+
+# Extend the default ruleset
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Nix store paths and flake.lock are not secrets"
+paths = [
+  # flake.lock contains Nix store hashes — not secrets
+  '''flake\.lock''',
+  # Nix store paths embedded in source are content-addressed hashes
+  '''/nix/store/''',
+]
+
+[[allowlists]]
+description = "Test assets directory may contain sample/fixture data"
+paths = ['''test-assets/''']

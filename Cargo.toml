@@ -1,10 +1,10 @@
 [workspace]
 members = [
-    "forge-core",
-    "forge-nix",
-    "forge-executor",
-    "forge-auditor",
-    "forge-gateway",
+  "forge-core",
+  "forge-nix",
+  "forge-executor",
+  "forge-auditor",
+  "forge-gateway",
 ]
 resolver = "2"
 
@@ -15,8 +15,8 @@ license = "MIT OR Apache-2.0"
 rust-version = "1.85"
 
 [workspace.dependencies]
-# forge crates
-forge-core = { path = "forge-core" }
+# forge crates (version pin required for cargo-deny wildcards check)
+forge-core = { path = "forge-core", version = "0.1.0" }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

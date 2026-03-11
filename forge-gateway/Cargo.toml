@@ -14,7 +14,7 @@ path = "src/lib.rs"
 
 [dependencies]
 forge-core = { workspace = true }
-forge-executor = { path = "../forge-executor" }
+forge-executor = { path = "../forge-executor", version = "0.1.0" }
 axum = "0.8"
 tokio = { workspace = true }
 serde = { workspace = true }

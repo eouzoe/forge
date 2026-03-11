@@ -1,0 +1,7 @@
+# .typos.toml — typos spell checker configuration
+# https://github.com/crate-ci/typos
+
+[default.extend-words]
+# hash_ba is a legitimate variable name (hash of b||a, paired with hash_ab)
+# Used in forge-executor proptest to verify hash order-sensitivity.
+ba = "ba"
