@@ -49,6 +49,20 @@ weekly-gate: pr-gate
     fi
     cargo +nightly miri test --workspace --exclude forge-gateway -- --test-threads=1
 
+# ── Outer-to-Inner Gate (<5min) ───────────────────────────────────────────────
+# ADR-002: code from research/controlled circles must pass before merging to main.
+# Purity: inner circle [GUARANTEED]. Label: all checks must pass, no advisory skips.
+outer-to-inner-gate:
+    cargo build --release
+    @if [ -f deny.toml ]; then \
+        cargo deny check; \
+    else \
+        echo "[outer-to-inner-gate] SKIP: deny.toml not found — run 'just deny-init' (Q004)"; \
+    fi
+    cargo audit
+    cargo clippy --workspace -- -D warnings
+    cargo nextest run --workspace
+
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 # Single-command status overview.
 dashboard:
