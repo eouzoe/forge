@@ -1,33 +1,189 @@
-# Build
+# =============================================================================
+# eouzoe/forge — .gitignore
+# v4 — 2026-05-14 (trimmed to forge's actual scope: solo OSS Rust workspace)
+# =============================================================================
+#
+# Project: github.com/eouzoe/forge — public OSS, solo dev, Rust + Nix workspace
+# This file is curated for *this* repo. Generic enterprise template lives
+# at ~/src/active/forge/.claude/ (local-only); do not copy-paste blindly.
+#
+# -----------------------------------------------------------------------------
+# Editing rules:
+# -----------------------------------------------------------------------------
+#   - !! No inline `# comment` after a pattern !! It becomes part of the
+#     pattern.  Comments must occupy their own line.
+#   - Anchor with leading `/` for repo-root-only rules (avoids collision
+#     with Rust modules of the same name, e.g. forge-core/src/memory/).
+#   - Trailing `/` for directories.
+#
+# -----------------------------------------------------------------------------
+# Test plan — run all four after every .gitignore edit:
+# -----------------------------------------------------------------------------
+#   1. Drift detection (must return empty):
+#        git ls-files -i -c --exclude-standard
+#   2. Spot-check positive case:
+#        git check-ignore -v --no-index <path-that-should-be-ignored>
+#   3. Spot-check negative case (Rust src must NOT be ignored):
+#        git check-ignore -v --no-index forge-core/src/<any>.rs
+#   4. Real add behaviour (whitelist verification):
+#        touch .env .env.example
+#        git add --intent-to-add .env .env.example   # .env must be blocked
+#        git reset && rm .env .env.example
+#
+# -----------------------------------------------------------------------------
+# Tracked-by-policy (decisions — do NOT add these to the ignore list):
+# -----------------------------------------------------------------------------
+#   - Cargo.lock          — binary workspace, pins reproducible builds
+#   - flake.lock          — Nix hermetic build inputs
+#   - rust-toolchain.toml — pinned toolchain
+#   - .clippy.toml / rustfmt.toml / deny.toml / .gitleaks.toml / .typos.toml
+#   - .cargo/config.toml  — workspace cargo config (NOT credentials.toml)
+#   - .github/workflows/  — CI definitions
+#   - .gitattributes      — line-ending / linguist / diff policy
+#   - test-assets/*.{ext4,bin} — legacy-tracked; migrate to Nix fetchurl
+# =============================================================================
+
+
+# Build artefacts ------------------------------------------------------------
 /target/
+**/target/
+target-*/
 fuzz/target/
 **/*.rs.bk
 *.pdb
+rustc-ice-*.txt
 
-# Secrets
-.env
-.env.local
-*.key
-*.pem
 
-# IDE
-.vscode/
-.idea/
+# Coverage / mutants / nextest -----------------------------------------------
+*.profraw
+*.profdata
+default_*.profraw
+default_*.profdata
+/coverage/
+lcov.info
+tarpaulin-report.*
+cobertura.xml
+**/target/llvm-cov-target/
+**/mutants.out*/
+**/target/nextest/
+
+
+# Profiling outputs ----------------------------------------------------------
+perf.data*
+flamegraph.svg
+*.folded
+cargo-flamegraph.stacks
+*.samply.json
+callgrind.out.*
+massif.out.*
+/pgo-data/
+
+
+# Fuzzing (cargo-fuzz / bolero) ----------------------------------------------
+/fuzz/**/corpus/
+/fuzz/**/artifacts/
+/fuzz/coverage/
+
+
+# Vendored Rust deps ---------------------------------------------------------
+/vendor/
+
+
+# Merge & editor temp --------------------------------------------------------
+*.orig
+*.rej
 *.swp
 *.swo
+*.swn
+.#*
+\#*\#
 *~
+Session.vim
+.netrwhist
 
-# OS
+
+# Secrets / credentials ------------------------------------------------------
+# .cargo/credentials.toml — crates.io registry token; top Rust supply-chain
+# leak vector.  Never commit.
+.cargo/credentials.toml
+.cargo/credentials
+.env
+.env.*
+!.env.example
+.envrc.local
+*.key
+*.pem
+*.p12
+*.pfx
+
+
+# IDE / Editors --------------------------------------------------------------
+.vscode/
+.idea/
+*.iml
+
+
+# OS — Linux / macOS / Windows -----------------------------------------------
 .DS_Store
+._*
+.AppleDouble/
 Thumbs.db
+desktop.ini
 
-# Internal development files
-.beads/
-.claude/
+
+# WSL2 — Windows alternate data streams when files cross /mnt/c --------------
+*:Zone.Identifier
+nul
+
+
+# Generated security artefacts -----------------------------------------------
+.gitleaks-report.*
+gitleaks.sarif
+*.spdx.json
+*.cdx.json
+
+
+# bacon / lefthook overrides / Taskfile state --------------------------------
+.bacon-locations
+.lefthook-local.yml
+.task/
+
+
+# -----------------------------------------------------------------------------
+# AI agents / local-only planning (scoped to tools actually in use:
+# Claude Code + OpenAI Codex).  When adopting a new AI tool, add its config
+# directory here BEFORE first run.
+# -----------------------------------------------------------------------------
+/.beads/
+/.claude/
+/.codex/
+/.harness/
+/memory/
 AGENTS.md
+CLAUDE.md
 SESSION_LOG.md
-.mcp.json
 
-# Nix
+
+# Nix ecosystem --------------------------------------------------------------
 result
-.direnv
+result-*
+.direnv/
+.devenv/
+.devenv.flake.nix
+devenv.local.nix
+
+
+# Runtime data ---------------------------------------------------------------
+searxng-data/
+
+
+# Test fixtures (large binaries) ---------------------------------------------
+# TODO: untrack existing test-assets/*.{ext4,bin} once sources move to
+#       Nix `fetchurl { sha256 = ...; }` for hermetic pinning.
+test-assets/*.ext4
+test-assets/*.bin
+
+
+# Process / crash dumps ------------------------------------------------------
+*.crash
+core.*
